@@ -2,6 +2,7 @@ buildscript {
     ext.kotlin_version = '1.1-M02'
     repositories {
         mavenCentral()
+        maven { url 'http://dl.bintray.com/kotlin/kotlin-eap-1.1' }
     }
     dependencies {
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
@@ -10,8 +11,12 @@ buildscript {
 
 apply plugin: 'kotlin'
 
+sourceSets.main.java.srcDirs = [ 'kotlinx-coroutines-async/src/main/kotlin' ]
+
 repositories {
     mavenCentral()
+    maven { url 'http://dl.bintray.com/kotlin/kotlin-eap-1.1' }
+    maven { url 'http://dl.bintray.com/kotlin/kotlinx.coroutines' }
 }
 dependencies {
     compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
