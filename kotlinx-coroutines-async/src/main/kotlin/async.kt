@@ -6,7 +6,7 @@ import java.nio.channels.AsynchronousFileChannel
 import java.nio.channels.AsynchronousServerSocketChannel
 import java.nio.channels.AsynchronousSocketChannel
 import java.nio.channels.CompletionHandler
-import java.util.concurrent.CompletableFuture
+import java8.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 import javax.swing.SwingUtilities
 
