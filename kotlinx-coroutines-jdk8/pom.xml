@@ -25,7 +25,7 @@
         <version>0.8-beta-SNAPSHOT</version>
     </parent>
 
-    <artifactId>kotlinx-coroutines-rx</artifactId>
+    <artifactId>kotlinx-coroutines-jdk8</artifactId>
     <packaging>jar</packaging>
 
     <build>
@@ -35,9 +35,10 @@
 
     <dependencies>
         <dependency>
-            <groupId>io.reactivex</groupId>
-            <artifactId>rxjava</artifactId>
-            <version>1.1.5</version>
+            <groupId>org.jetbrains.kotlinx</groupId>
+            <artifactId>kotlinx-coroutines-core</artifactId>
+            <version>${project.version}</version>
+            <scope>compile</scope>
         </dependency>
     </dependencies>
 
