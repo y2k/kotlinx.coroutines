@@ -17,7 +17,7 @@
 package kotlinx.coroutines.experimental.future
 
 import kotlinx.coroutines.experimental.*
-import java.util.concurrent.CompletableFuture
+import java8.util.concurrent.CompletableFuture
 import kotlin.coroutines.experimental.Continuation
 import kotlin.coroutines.experimental.CoroutineContext
 import kotlin.coroutines.experimental.startCoroutine
