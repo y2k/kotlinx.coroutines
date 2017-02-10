@@ -15,7 +15,9 @@ apply plugin: 'maven'
 group = 'com.github.y2k'
 version '0.1-alpha-2'
 
-sourceSets.main.java.srcDirs = [ 'kotlinx-coroutines-jdk8-compat/src/main/kotlin' ]
+sourceSets.main.java.srcDirs = [
+        'kotlinx-coroutines-core/src/main/kotlin',
+        'kotlinx-coroutines-jdk8-compat/src/main/kotlin']
 
 repositories {
     mavenCentral()
