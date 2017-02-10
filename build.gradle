@@ -13,7 +13,7 @@ apply plugin: 'kotlin'
 apply plugin: 'maven'
 
 group = 'com.github.y2k'
-version '0.1-alpha-2'
+version '0.8-beta-compat'
 
 sourceSets.main.java.srcDirs = [
         'kotlinx-coroutines-core/src/main/kotlin',
