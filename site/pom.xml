@@ -22,7 +22,7 @@
     <parent>
         <groupId>org.jetbrains.kotlinx</groupId>
         <artifactId>kotlinx-coroutines</artifactId>
-        <version>0.8-beta-SNAPSHOT</version>
+        <version>0.12</version>
     </parent>
 
     <artifactId>kotlinx-coroutines-site</artifactId>
@@ -61,7 +61,19 @@
         </dependency>
         <dependency>
             <groupId>org.jetbrains.kotlinx</groupId>
-            <artifactId>kotlinx-coroutines-rx</artifactId>
+            <artifactId>kotlinx-coroutines-reactive</artifactId>
+            <version>${project.version}</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.jetbrains.kotlinx</groupId>
+            <artifactId>kotlinx-coroutines-rx1</artifactId>
+            <version>${project.version}</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.jetbrains.kotlinx</groupId>
+            <artifactId>kotlinx-coroutines-rx2</artifactId>
             <version>${project.version}</version>
             <scope>compile</scope>
         </dependency>
@@ -89,6 +101,12 @@
                 <groupId>org.jetbrains.dokka</groupId>
                 <artifactId>dokka-maven-plugin</artifactId>
                 <version>${dokka.version}</version>
+                <configuration>
+                    <skip>true</skip>
+                </configuration>
+            </plugin>
+            <plugin>
+                <artifactId>maven-deploy-plugin</artifactId>
                 <configuration>
                     <skip>true</skip>
                 </configuration>

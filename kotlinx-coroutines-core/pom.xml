@@ -22,7 +22,7 @@
     <parent>
         <groupId>org.jetbrains.kotlinx</groupId>
         <artifactId>kotlinx-coroutines</artifactId>
-        <version>0.8-beta-SNAPSHOT</version>
+        <version>0.12</version>
     </parent>
 
     <artifactId>kotlinx-coroutines-core</artifactId>
@@ -44,6 +44,17 @@
                     <jvm>${env.JDK_16}/bin/java</jvm>
                     <argLine>-ea -Xmx1g -Xms1g</argLine>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>test-jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

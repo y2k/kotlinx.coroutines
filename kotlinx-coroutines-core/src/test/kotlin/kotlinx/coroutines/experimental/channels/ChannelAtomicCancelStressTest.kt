@@ -17,25 +17,30 @@
 package kotlinx.coroutines.experimental.channels
 
 import kotlinx.coroutines.experimental.*
+import kotlinx.coroutines.experimental.selects.select
+import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import java.util.*
-import org.junit.Assert.*
+import java.util.concurrent.atomic.AtomicReference
 
+/**
+ * Tests cancel atomicity for channel send & receive operations, including their select versions.
+ */
 @RunWith(Parameterized::class)
-class ChannelAtomicCancelStressTest(val kind: TestChannelKind) {
+class ChannelAtomicCancelStressTest(val kind: TestChannelKind) : TestBase() {
     companion object {
         @Parameterized.Parameters(name = "{0}")
         @JvmStatic
         fun params(): Collection<Array<Any>> = TestChannelKind.values().map { arrayOf<Any>(it) }
     }
 
-    val TEST_DURATION = 3000L
+    val TEST_DURATION = 3000L * stressTestMultiplier
 
     val channel = kind.create()
-    val senderDone = RendezvousChannel<Boolean>()
-    val receiverDone = RendezvousChannel<Boolean>()
+    val senderDone = ArrayChannel<Boolean>(1)
+    val receiverDone = ArrayChannel<Boolean>(1)
 
     var lastSent = 0
     var lastReceived = 0
@@ -46,36 +51,53 @@ class ChannelAtomicCancelStressTest(val kind: TestChannelKind) {
     var missedCnt = 0
     var dupCnt = 0
 
+    val failed = AtomicReference<Throwable>()
+
     lateinit var sender: Job
     lateinit var receiver: Job
 
+    fun fail(e: Throwable) = failed.compareAndSet(null, e)
+
+    inline fun cancellable(done: ArrayChannel<Boolean>, block: () -> Unit) {
+        try {
+            block()
+        } catch (e: Throwable) {
+            if (e !is CancellationException) fail(e)
+            throw e
+        } finally {
+            if (!done.offer(true))
+                fail(IllegalStateException("failed to offer to done channel"))
+        }
+    }
+
     @Test
-    fun testAtomicCancelStress() = runBlocking {
+    fun testAtomicCancelStress() = runBlocking<Unit> {
         val deadline = System.currentTimeMillis() + TEST_DURATION
         launchSender()
         launchReceiver()
         val rnd = Random()
-        while (System.currentTimeMillis() < deadline) {
+        while (System.currentTimeMillis() < deadline && failed.get() == null) {
             when (rnd.nextInt(3)) {
                 0 -> { // cancel & restart sender
                     stopSender()
                     launchSender()
                 }
-                1 -> { // cancel & restrat receiver
-                    stopReceier()
+                1 -> { // cancel & restart receiver
+                    stopReceiver()
                     launchReceiver()
                 }
                 2 -> yield() // just yield (burn a little time)
             }
         }
         stopSender()
-        stopReceier()
+        stopReceiver()
         println("            Sent $lastSent ints to channel")
         println("        Received $lastReceived ints from channel")
         println("  Stopped sender $stoppedSender times")
         println("Stopped receiver $stoppedReceiver times")
         println("          Missed $missedCnt ints")
         println("      Duplicated $dupCnt ints")
+        failed.get()?.let { throw it }
         assertEquals(0, missedCnt)
         assertEquals(0, dupCnt)
         assertEquals(lastSent, lastReceived)
@@ -83,14 +105,19 @@ class ChannelAtomicCancelStressTest(val kind: TestChannelKind) {
 
     fun launchSender() {
         sender = launch(CommonPool) {
-            try {
+            val rnd = Random()
+            cancellable(senderDone) {
+                var counter = 0
                 while (true) {
                     val trySend = lastSent + 1
-                    channel.send(trySend)
+                    when (rnd.nextInt(2)) {
+                        0 -> channel.send(trySend)
+                        1 -> select { channel.onSend(trySend) {} }
+                        else -> error("cannot happen")
+                    }
                     lastSent = trySend // update on success
+                    if (counter++ % 1000 == 0) yield() // yield periodically to check cancellation on LinkedListChannel
                 }
-            } finally {
-                run(NonCancellable) { senderDone.send(true) }
             }
         }
     }
@@ -103,9 +130,14 @@ class ChannelAtomicCancelStressTest(val kind: TestChannelKind) {
 
     fun launchReceiver() {
         receiver = launch(CommonPool) {
-            try {
+            val rnd = Random()
+            cancellable(receiverDone) {
                 while (true) {
-                    val received = channel.receive()
+                    val received = when (rnd.nextInt(2)) {
+                        0 -> channel.receive()
+                        1 -> select { channel.onReceive { it } }
+                        else -> error("cannot happen")
+                    }
                     val expected = lastReceived + 1
                     if (received > expected)
                         missedCnt++
@@ -113,13 +145,11 @@ class ChannelAtomicCancelStressTest(val kind: TestChannelKind) {
                         dupCnt++
                     lastReceived = received
                 }
-            } finally {
-                run(NonCancellable) { receiverDone.send(true) }
             }
         }
     }
 
-    suspend fun stopReceier() {
+    suspend fun stopReceiver() {
         stoppedReceiver++
         receiver.cancel()
         receiverDone.receive()

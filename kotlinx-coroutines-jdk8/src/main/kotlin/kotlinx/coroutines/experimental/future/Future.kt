@@ -51,7 +51,7 @@ public fun <T> future(context: CoroutineContext = CommonPool, block: suspend () 
 public fun <T> Deferred<T>.toCompletableFuture(): CompletableFuture<T> {
     val future = CompletableFuture<T>()
     future.whenComplete { _, exception -> cancel(exception) }
-    onCompletion {
+    invokeOnCompletion {
         try {
             future.complete(getCompleted())
         } catch (exception: Exception) {
@@ -62,7 +62,9 @@ public fun <T> Deferred<T>.toCompletableFuture(): CompletableFuture<T> {
 }
 
 /**
- * Awaits for completion of the future without blocking a thread. This suspending function is cancellable.
+ * Awaits for completion of the future without blocking a thread.
+ *
+ * This suspending function is cancellable.
  * If the [Job] of the current coroutine is completed while this suspending function is waiting, this function
  * immediately resumes with [CancellationException] .
  */

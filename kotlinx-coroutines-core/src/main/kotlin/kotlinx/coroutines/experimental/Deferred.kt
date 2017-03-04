@@ -16,6 +16,10 @@
 
 package kotlinx.coroutines.experimental
 
+import kotlinx.coroutines.experimental.intrinsics.startUndispatchedCoroutine
+import kotlinx.coroutines.experimental.selects.SelectBuilder
+import kotlinx.coroutines.experimental.selects.SelectInstance
+import kotlinx.coroutines.experimental.selects.select
 import kotlin.coroutines.experimental.CoroutineContext
 import kotlin.coroutines.experimental.startCoroutine
 
@@ -27,6 +31,7 @@ import kotlin.coroutines.experimental.startCoroutine
  * Deferred value has four or five possible states.
  *
  * | **State**                        | [isActive] | [isCompleted] | [isCompletedExceptionally] | [isCancelled] |
+ * | -------------------------------- | ---------- | ------------- | -------------------------- | ------------- |
  * | _New_ (optional initial state)   | `false`    | `false`       | `false`                    | `false`       |
  * | _Active_ (default initial state) | `true`     | `false`       | `false`                    | `false`       |
  * | _Resolved_  (final state)        | `false`    | `true`        | `false`                    | `false`       |
@@ -56,26 +61,36 @@ public interface Deferred<out T> : Job {
     val isCancelled: Boolean
 
     /**
-     * Awaits for completion of this value without blocking a thread and resumes when deferred computation is complete.
-     * This suspending function is cancellable.
+     * Awaits for completion of this value without blocking a thread and resumes when deferred computation is complete,
+     * returning the resulting value or throwing the corresponding exception if the deferred had completed exceptionally.
      *
+     * This suspending function is cancellable.
      * If the [Job] of the current coroutine is completed while this suspending function is waiting, this function
      * immediately resumes with [CancellationException].
+     *
+     * This function can be used in [select] invocation with [onAwait][SelectBuilder.onAwait] clause.
+     * Use [isCompleted] to check for completion of this deferred value without waiting.
      */
     public suspend fun await(): T
+
+    /**
+     * Registers [onAwait][SelectBuilder.onAwait] select clause.
+     * @suppress **This is unstable API and it is subject to change.**
+     */
+    public fun <R> registerSelectAwait(select: SelectInstance<R>, block: suspend (T) -> R)
 
     /**
      * Returns *completed* result or throws [IllegalStateException] if this deferred value has not
      * [completed][isCompleted] yet. It throws the corresponding exception if this deferred has
      * [completed exceptionally][isCompletedExceptionally].
      *
-     * This function is designed to be used from [onCompletion] handlers, when there is an absolute certainty that
+     * This function is designed to be used from [invokeOnCompletion] handlers, when there is an absolute certainty that
      * the value is already complete.
      */
     public fun getCompleted(): T
 
     /**
-     * **Deprecated**: Use `isActive`.
+     * @suppress **Deprecated**: Use `isActive`.
      */
     @Deprecated(message = "Use `isActive`", replaceWith = ReplaceWith("isActive"))
     public val isComputing: Boolean get() = isActive
@@ -108,7 +123,7 @@ public fun <T> async(context: CoroutineContext, start: Boolean = true, block: su
 }
 
 /**
- * **Deprecated**: `defer` was renamed to `async`.
+ * @suppress **Deprecated**: `defer` was renamed to `async`.
  */
 @Deprecated(message = "`defer` was renamed to `async`", level = DeprecationLevel.WARNING,
         replaceWith = ReplaceWith("async(context, block = block)"))
@@ -116,17 +131,17 @@ public fun <T> defer(context: CoroutineContext, block: suspend CoroutineScope.()
     async(context, block = block)
 
 private open class DeferredCoroutine<T>(
-    context: CoroutineContext,
+    override val parentContext: CoroutineContext,
     active: Boolean
-) : AbstractCoroutine<T>(context, active), Deferred<T> {
-    override val isCompletedExceptionally: Boolean get() = getState() is CompletedExceptionally
-    override val isCancelled: Boolean get() = getState() is Cancelled
+) : AbstractCoroutine<T>(active), Deferred<T> {
+    override val isCompletedExceptionally: Boolean get() = state is CompletedExceptionally
+    override val isCancelled: Boolean get() = state is Cancelled
 
     @Suppress("UNCHECKED_CAST")
     suspend override fun await(): T {
         // fast-path -- check state (avoid extra object creation)
         while(true) { // lock-free loop on state
-            val state = this.getState()
+            val state = this.state
             if (state !is Incomplete) {
                 // already complete -- just return result
                 if (state is CompletedExceptionally) throw state.exception
@@ -140,8 +155,8 @@ private open class DeferredCoroutine<T>(
 
     @Suppress("UNCHECKED_CAST")
     private suspend fun awaitSuspend(): T = suspendCancellableCoroutine { cont ->
-        cont.unregisterOnCompletion(onCompletion {
-            val state = getState()
+        cont.unregisterOnCompletion(invokeOnCompletion {
+            val state = this.state
             check(state !is Incomplete)
             if (state is CompletedExceptionally)
                 cont.resumeWithException(state.exception)
@@ -151,25 +166,61 @@ private open class DeferredCoroutine<T>(
     }
 
     @Suppress("UNCHECKED_CAST")
+    override fun <R> registerSelectAwait(select: SelectInstance<R>, block: suspend (T) -> R) {
+        // fast-path -- check state and select/return if needed
+        while (true) {
+            if (select.isSelected) return
+            val state = this.state
+            if (state !is Incomplete) {
+                // already complete -- select result
+                if (select.trySelect(idempotent = null)) {
+                    if (state is CompletedExceptionally)
+                        select.resumeSelectWithException(state.exception, MODE_DIRECT)
+                    else
+                        block.startUndispatchedCoroutine(state as T, select.completion)
+                }
+                return
+            }
+            if (startInternal(state) == 0) {
+                // slow-path -- register waiter for completion
+                select.unregisterOnCompletion(invokeOnCompletion(SelectAwaitOnCompletion(this, select, block)))
+                return
+            }
+        }
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    internal fun <R> selectAwaitCompletion(select: SelectInstance<R>, block: suspend (T) -> R, state: Any? = this.state) {
+        if (select.trySelect(idempotent = null)) {
+            if (state is CompletedExceptionally)
+                select.resumeSelectWithException(state.exception, MODE_DISPATCHED)
+            else
+                block.startCoroutine(state as T, select.completion)
+        }
+    }
+
+    @Suppress("UNCHECKED_CAST")
     override fun getCompleted(): T {
-        val state = getState()
+        val state = this.state
         check(state !is Incomplete) { "This deferred value has not completed yet" }
         if (state is CompletedExceptionally) throw state.exception
         return state as T
     }
+}
 
-    // for nicer debugging
-    override fun toString(): String {
-        val state = getState()
-        val result = if (state is Incomplete) "" else "[$state]"
-        return "${javaClass.simpleName}{${describeState(state)}}$result@${Integer.toHexString(System.identityHashCode(this))}"
-    }
+private class SelectAwaitOnCompletion<T, R>(
+    deferred: DeferredCoroutine<T>,
+    private val select: SelectInstance<R>,
+    private val block: suspend (T) -> R
+) : JobNode<DeferredCoroutine<T>>(deferred) {
+    override fun invoke(reason: Throwable?) = job.selectAwaitCompletion(select, block)
+    override fun toString(): String = "SelectAwaitOnCompletion[$select]"
 }
 
 private class LazyDeferredCoroutine<T>(
-        context: CoroutineContext,
-        val block: suspend CoroutineScope.() -> T
-) : DeferredCoroutine<T>(context, active = false) {
+    parentContext: CoroutineContext,
+    private val block: suspend CoroutineScope.() -> T
+) : DeferredCoroutine<T>(parentContext, active = false) {
     override fun onStart() {
         block.startCoroutine(this, this)
     }

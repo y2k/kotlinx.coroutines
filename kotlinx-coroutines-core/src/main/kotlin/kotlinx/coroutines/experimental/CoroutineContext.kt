@@ -34,6 +34,11 @@ private val DEBUG = run {
 
 private val COROUTINE_ID = AtomicLong()
 
+// for tests only
+internal fun resetCoroutineId() {
+    COROUTINE_ID.set(0)
+}
+
 /**
  * A coroutine dispatcher that is not confined to any specific thread.
  * It executes initial continuation of the coroutine _right here_ in the current call-frame
@@ -46,7 +51,7 @@ public object Unconfined : CoroutineDispatcher() {
 }
 
 /**
- * **Deprecated**: `Here` was renamed to `Unconfined`.
+ * @suppress **Deprecated**: `Here` was renamed to `Unconfined`.
  */
 @Deprecated(message = "`Here` was renamed to `Unconfined`",
         replaceWith = ReplaceWith(expression = "Unconfined"))

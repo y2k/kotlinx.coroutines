@@ -16,10 +16,10 @@
 
 package kotlinx.coroutines.experimental
 
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
 import org.junit.Test
 
-class JobTest {
+class JobTest : TestBase() {
     @Test
     fun testState() {
         val job = Job()
@@ -32,7 +32,7 @@ class JobTest {
     fun testHandler() {
         val job = Job()
         var fireCount = 0
-        job.onCompletion { fireCount++ }
+        job.invokeOnCompletion { fireCount++ }
         check(job.isActive)
         assertEquals(0, fireCount)
         // cancel once
@@ -48,9 +48,9 @@ class JobTest {
     @Test
     fun testManyHandlers() {
         val job = Job()
-        val n = 100
+        val n = 100 * stressTestMultiplier
         val fireCount = IntArray(n)
-        for (i in 0 until n) job.onCompletion { fireCount[i]++ }
+        for (i in 0 until n) job.invokeOnCompletion { fireCount[i]++ }
         check(job.isActive)
         for (i in 0 until n) assertEquals(0, fireCount[i])
         // cancel once
@@ -66,11 +66,11 @@ class JobTest {
     @Test
     fun testUnregisterInHandler() {
         val job = Job()
-        val n = 100
+        val n = 100 * stressTestMultiplier
         val fireCount = IntArray(n)
         for (i in 0 until n) {
             var registration: Job.Registration? = null
-            registration = job.onCompletion {
+            registration = job.invokeOnCompletion {
                 fireCount[i]++
                 registration!!.unregister()
             }
@@ -90,9 +90,9 @@ class JobTest {
     @Test
     fun testManyHandlersWithUnregister() {
         val job = Job()
-        val n = 100
+        val n = 100 * stressTestMultiplier
         val fireCount = IntArray(n)
-        val registrations = Array<Job.Registration>(n) { i -> job.onCompletion { fireCount[i]++ } }
+        val registrations = Array<Job.Registration>(n) { i -> job.invokeOnCompletion { fireCount[i]++ } }
         check(job.isActive)
         fun unreg(i: Int) = i % 4 <= 1
         for (i in 0 until n) if (unreg(i)) registrations[i].unregister()
@@ -105,10 +105,10 @@ class JobTest {
     @Test
     fun testExceptionsInHandler() {
         val job = Job()
-        val n = 100
+        val n = 100 * stressTestMultiplier
         val fireCount = IntArray(n)
         class TestException : Throwable()
-        for (i in 0 until n) job.onCompletion {
+        for (i in 0 until n) job.invokeOnCompletion {
             fireCount[i]++
             throw TestException()
         }
@@ -123,9 +123,9 @@ class JobTest {
     @Test
     fun testMemoryRelease() {
         val job = Job()
-        val n = 10_000_000
+        val n = 10_000_000 * stressTestMultiplier
         var fireCount = 0
-        for (i in 0 until n) job.onCompletion { fireCount++ }.unregister()
+        for (i in 0 until n) job.invokeOnCompletion { fireCount++ }.unregister()
     }
     
     @Test

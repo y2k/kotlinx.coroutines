@@ -22,9 +22,22 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
 open class TestBase {
+    val isStressTest = System.getProperty("stressTest") != null
+    val stressTestMultiplier = if (isStressTest) 10 else 1
+
     var actionIndex = AtomicInteger()
     var finished = AtomicBoolean()
     var error = AtomicReference<Throwable>()
+
+    public fun error(message: Any): Nothing {
+        val exception = IllegalStateException(message.toString())
+        error.compareAndSet(null, exception)
+        throw exception
+    }
+
+    public inline fun check(value: Boolean, lazyMessage: () -> Any): Unit {
+        if (!value) error(lazyMessage())
+    }
 
     fun expect(index: Int) {
         val wasIndex = actionIndex.incrementAndGet()
@@ -32,18 +45,18 @@ open class TestBase {
     }
 
     fun expectUnreached() {
-        throw IllegalStateException("Should not be reached").also { error.compareAndSet(null, it) }
+        error("Should not be reached")
     }
 
     fun finish(index: Int) {
         expect(index)
-        finished.set(true)
+        check(!finished.getAndSet(true)) { "Should call 'finish(...)' at most once" }
     }
 
     @After
     fun onCompletion() {
         error.get()?.let { throw it }
-        check(finished.get()) { "Expecting that 'finish(...)' was invoked, but it was not" }
+        check(actionIndex.get() == 0 || finished.get()) { "Expecting that 'finish(...)' was invoked, but it was not" }
     }
 
 }

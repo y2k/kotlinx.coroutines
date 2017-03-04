@@ -16,26 +16,27 @@
 
 package kotlinx.coroutines.experimental.internal
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
+import kotlinx.coroutines.experimental.TestBase
+import org.junit.Assert.*
 import org.junit.Test
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
 
 /**
- * This stress test has 6 threads adding randomly first or last item to the list and them immediately undoing
+ * This stress test has 6 threads adding randomly first to the list and them immediately undoing
  * this addition by remove, and 4 threads removing first node. The resulting list that is being
  * stressed is very short.
  */
-class LockFreeLinkedListShortStressTest {
-    private data class IntNode(val i: Int) : LockFreeLinkedListNode()
-    private val list = LockFreeLinkedListHead()
+class LockFreeLinkedListShortStressTest : TestBase() {
+    data class IntNode(val i: Int) : LockFreeLinkedListNode()
+    val list = LockFreeLinkedListHead()
+
+    val TEST_DURATION = 5000L * stressTestMultiplier
 
     val threads = mutableListOf<Thread>()
     val nAdderThreads = 6
     val nRemoverThreads = 4
-    val timeout = 5000L
     val completedAdder = AtomicInteger()
     val completedRemover = AtomicInteger()
 
@@ -45,22 +46,26 @@ class LockFreeLinkedListShortStressTest {
 
     @Test
     fun testStress() {
-        val deadline = System.currentTimeMillis() + timeout
+        val deadline = System.currentTimeMillis() + TEST_DURATION
         repeat(nAdderThreads) { threadId ->
             threads += thread(start = false, name = "adder-$threadId") {
                 val rnd = Random()
                 while (System.currentTimeMillis() < deadline) {
-                    val node = IntNode(threadId)
-                    when (rnd.nextInt(4)) {
-                        0 -> list.addFirst(node)
-                        1 -> list.addLast(node)
-                        2 -> list.addFirstIf(node, { true }) // just to test conditional add
-                        3 -> list.addLastIf(node, { true })
+                    var node: IntNode? = IntNode(threadId)
+                    when (rnd.nextInt(3)) {
+                        0 -> list.addLast(node!!)
+                        1 -> assertTrue(list.addLastIf(node!!, { true })) // just to test conditional add
+                        2 -> { // just to test failed conditional add
+                            assertFalse(list.addLastIf(node!!, { false }))
+                            node = null
+                        }
                     }
-                    if (node.remove())
-                        undone.incrementAndGet()
-                    else
-                        missed.incrementAndGet()
+                    if (node != null) {
+                        if (node.remove())
+                            undone.incrementAndGet()
+                        else
+                            missed.incrementAndGet()
+                    }
                 }
                 completedAdder.incrementAndGet()
             }

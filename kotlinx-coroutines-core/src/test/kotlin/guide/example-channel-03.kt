@@ -20,7 +20,7 @@ package guide.channel.example03
 import kotlinx.coroutines.experimental.*
 import kotlinx.coroutines.experimental.channels.*
 
-fun produceSquares() = buildChannel<Int>(CommonPool) {
+fun produceSquares() = produce<Int>(CommonPool) {
     for (x in 1..5) send(x * x)
 }
 

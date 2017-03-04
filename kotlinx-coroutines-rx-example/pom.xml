@@ -22,7 +22,7 @@
     <parent>
         <groupId>org.jetbrains.kotlinx</groupId>
         <artifactId>kotlinx-coroutines</artifactId>
-        <version>0.8-beta-SNAPSHOT</version>
+        <version>0.12</version>
     </parent>
 
     <artifactId>kotlinx-coroutines-rx-example</artifactId>
@@ -64,7 +64,7 @@
         </dependency>
         <dependency>
             <groupId>org.jetbrains.kotlinx</groupId>
-            <artifactId>kotlinx-coroutines-rx</artifactId>
+            <artifactId>kotlinx-coroutines-rx1</artifactId>
             <version>${project.version}</version>
             <scope>compile</scope>
         </dependency>

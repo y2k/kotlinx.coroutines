@@ -23,7 +23,7 @@
 
     <groupId>org.jetbrains.kotlinx</groupId>
     <artifactId>kotlinx-coroutines</artifactId>
-    <version>0.8-beta-SNAPSHOT</version>
+    <version>0.12</version>
     <packaging>pom</packaging>
 
     <description>Coroutines support libraries for Kotlin 1.1</description>
@@ -77,8 +77,8 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <kotlin.version>1.1.0-beta-38</kotlin.version>
-        <dokka.version>0.9.13</dokka.version>
+        <kotlin.version>1.1.0</kotlin.version>
+        <dokka.version>0.9.14</dokka.version>
         <junit.version>4.12</junit.version>
         <maven.compiler.source>1.6</maven.compiler.source>
         <maven.compiler.target>1.6</maven.compiler.target>
@@ -101,7 +101,9 @@
         <module>kotlinx-coroutines-javafx</module>
         <module>kotlinx-coroutines-jdk8</module>
         <module>kotlinx-coroutines-nio</module>
-        <module>kotlinx-coroutines-rx</module>
+        <module>kotlinx-coroutines-reactive</module>
+        <module>kotlinx-coroutines-rx1</module>
+        <module>kotlinx-coroutines-rx2</module>
         <module>kotlinx-coroutines-rx-example</module>
         <module>site</module>
     </modules>
@@ -187,6 +189,7 @@
                         <include>${project.basedir}/README.md</include>
                     </includes>
                     <outputFormat>kotlin-website</outputFormat>
+                    <jdkVersion>8</jdkVersion>
                 </configuration>
             </plugin>
             <plugin>

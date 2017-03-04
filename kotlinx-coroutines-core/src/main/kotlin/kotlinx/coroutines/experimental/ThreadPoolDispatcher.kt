@@ -45,23 +45,31 @@ fun newFixedThreadPoolContext(nThreads: Int, name: String, parent: Job? = null):
     return job + ThreadPoolDispatcher(nThreads, name, job)
 }
 
-private class ThreadPoolDispatcher(
+internal class PoolThread(
+    val dispatcher: ThreadPoolDispatcher, // for debugging & tests
+    target: Runnable, name: String
+) : Thread(target, name) {
+    init { isDaemon = true }
+}
+
+internal class ThreadPoolDispatcher(
         nThreads: Int,
         name: String,
         val job: Job
 ) : CoroutineDispatcher(), Delay {
     val threadNo = AtomicInteger()
     val executor: ScheduledExecutorService = Executors.newScheduledThreadPool(nThreads) { target ->
-        Thread(target, if (nThreads == 1) name else name + "-" + threadNo.incrementAndGet()).apply { isDaemon = true }
+        PoolThread(this, target, if (nThreads == 1) name else name + "-" + threadNo.incrementAndGet())
     }
 
     init {
-        job.onCompletion { executor.shutdown() }
+        job.invokeOnCompletion { executor.shutdown() }
     }
 
     override fun dispatch(context: CoroutineContext, block: Runnable) = executor.execute(block)
 
     override fun scheduleResumeAfterDelay(time: Long, unit: TimeUnit, continuation: CancellableContinuation<Unit>) {
-        executor.scheduleResumeAfterDelay(time, unit, continuation)
+        val timeout = executor.schedule(ResumeUndispatchedRunnable(this, continuation), time, unit)
+        continuation.cancelFutureOnCompletion(timeout)
     }
 }

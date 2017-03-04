@@ -20,12 +20,12 @@ package guide.channel.example04
 import kotlinx.coroutines.experimental.*
 import kotlinx.coroutines.experimental.channels.*
 
-fun produceNumbers() = buildChannel<Int>(CommonPool) {
+fun produceNumbers() = produce<Int>(CommonPool) {
     var x = 1
     while (true) send(x++) // infinite stream of integers starting from 1
 }
 
-fun square(numbers: ReceiveChannel<Int>) = buildChannel<Int>(CommonPool) {
+fun square(numbers: ReceiveChannel<Int>) = produce<Int>(CommonPool) {
     for (x in numbers) send(x * x)
 }
 

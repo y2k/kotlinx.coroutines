@@ -21,12 +21,12 @@ import kotlinx.coroutines.experimental.*
 import kotlinx.coroutines.experimental.channels.*
 import kotlin.coroutines.experimental.CoroutineContext
 
-fun numbersFrom(context: CoroutineContext, start: Int) = buildChannel<Int>(context) {
+fun numbersFrom(context: CoroutineContext, start: Int) = produce<Int>(context) {
     var x = start
     while (true) send(x++) // infinite stream of integers from start
 }
 
-fun filter(context: CoroutineContext, numbers: ReceiveChannel<Int>, prime: Int) = buildChannel<Int>(context) {
+fun filter(context: CoroutineContext, numbers: ReceiveChannel<Int>, prime: Int) = produce<Int>(context) {
     for (x in numbers) if (x % prime != 0) send(x)
 }
 

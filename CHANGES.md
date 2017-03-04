@@ -1,5 +1,41 @@
 # Change log for kotlinx.coroutines 
 
+## Version 0.12
+
+* Switched to Kotlin version 1.1.0 release.
+* Reworked and updated utilities for 
+  [Reactive Streams](kotlinx-coroutines-reactive), 
+  [Rx 1.x](kotlinx-coroutines-rx1), and 
+  [Rx 2.x](kotlinx-coroutines-rx2) with library-specific 
+  coroutine builders, suspending functions, converters and iteration support.
+* `LinkedListChannel` with unlimited buffer (`offer` always succeeds).
+* `onLock` select clause and an optional `owner` parameter in all `Mutex` functions.
+* `selectUnbiased` function.
+* `actor` coroutine builder.
+* Couple more examples for "Shared mutable state and concurrency" section and 
+  "Channels are fair" section with ping-pong table example 
+  in [coroutines guide](coroutines-guide.md).
+
+## Version 0.11-rc
+
+* `select` expression with onJoin/onAwait/onSend/onReceive clauses.
+* `Mutex` is moved to `kotlinx.coroutines.experimental.sync` package.
+* `ClosedSendChannelException` is a subclass of `CancellationException` now.
+* New sections on "Shared mutable state and concurrency" and "Select expression" 
+  in [coroutines guide](coroutines-guide.md).
+
+## Version 0.10-rc
+
+* Switched to Kotlin version 1.1.0-rc-91.
+* `Mutex` synchronization primitive is introduced.
+* `buildChannel` is renamed to `produce`, old name is deprecated.
+* `Job.onCompletion` is renamed to `Job.invokeOnCompletion`, old name is deprecated.
+* `delay` implementation in Swing, JavaFx, and scheduled executors is fixed to avoid an extra dispatch.
+* `CancellableContinuation.resumeUndispatched` is introduced to make this efficient implementation possible.
+* Remove unnecessary creation of `CancellationException` to improve performance, plus other performance improvements.
+* Suppress deprecated and internal APIs from docs.
+* Better docs at top level with categorized summary of classes and functions.
+
 ## Version 0.8-beta
 
 * `defer` coroutine builder is renamed to `async`.

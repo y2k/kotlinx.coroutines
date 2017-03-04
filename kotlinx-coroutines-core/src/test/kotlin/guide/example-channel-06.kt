@@ -20,7 +20,7 @@ package guide.channel.example06
 import kotlinx.coroutines.experimental.*
 import kotlinx.coroutines.experimental.channels.*
 
-fun produceNumbers() = buildChannel<Int>(CommonPool) {
+fun produceNumbers() = produce<Int>(CommonPool) {
     var x = 1 // start from 1
     while (true) {
         send(x++) // produce next
@@ -29,10 +29,9 @@ fun produceNumbers() = buildChannel<Int>(CommonPool) {
 }
 
 fun launchProcessor(id: Int, channel: ReceiveChannel<Int>) = launch(CommonPool) {
-    while (true) {
-        val x = channel.receive()
+    for (x in channel) {
         println("Processor #$id received $x")
-    }
+    }    
 }
 
 fun main(args: Array<String>) = runBlocking<Unit> {
